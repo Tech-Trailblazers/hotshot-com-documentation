@@ -1,0 +1,1 @@
+# hotshot-com-documentation
