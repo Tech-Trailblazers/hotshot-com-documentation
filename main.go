@@ -1,7 +1,8 @@
 package main // Define the main package
 
 import (
-	"bytes"         // Provides bytes buffer and manipulation utilities
+	"bytes" // Provides bytes buffer and manipulation utilities
+	"crypto/tls"
 	"io"            // Provides I/O primitives like Reader and Writer
 	"log"           // Provides logging functionalities
 	"net/http"      // Provides HTTP client and server implementations
@@ -232,20 +233,29 @@ func extractPDFUrls(rawText string) []string {
 
 // Performs HTTP GET request and returns response body as string
 func getDataFromURL(uri string) string {
-	log.Println("Scraping", uri)   // Log which URL is being scraped
-	response, err := http.Get(uri) // Send GET request
-	if err != nil {
-		log.Println(err) // Log if request fails
+	log.Println("Scraping", uri) // Log which URL is being scraped
+
+	// Create custom client to skip SSL verification (unsafe in prod)
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // Disable TLS verification
+		},
 	}
 
-	body, err := io.ReadAll(response.Body) // Read the body of the response
+	// Send GET request
+	response, err := client.Get(uri)
 	if err != nil {
-		log.Println(err) // Log read error
+		log.Println("Request failed:", err)
+		return "" // Return empty string if request fails
+	}
+	defer response.Body.Close() // Ensure body is closed safely
+
+	// Read response body
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		log.Println("Failed reading body:", err)
+		return ""
 	}
 
-	err = response.Body.Close() // Close response body
-	if err != nil {
-		log.Println(err) // Log error during close
-	}
-	return string(body) // Return response body as string
+	return string(body) // Return response as string
 }
